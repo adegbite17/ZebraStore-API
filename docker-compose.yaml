@@ -1,0 +1,52 @@
+version: "3"
+
+services:
+  backend:
+    build:
+      context: .
+      args:
+        - ENVIRONMENT=local
+    ports:
+      - "5000:5000"
+    entrypoint: ["python", "run.py"]
+    volumes:
+      - .:/usr/src/backend
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgresdb:5432/ZebraStore
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+
+  app-test:
+    build:
+      context: .
+      args:
+        - ENVIRONMENT=test
+    volumes:
+      - .:/usr/src/backend
+   # entrypoint: ["pytest", "tests"]
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgresdb:5432/ZebraStore
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+
+  postgresdb:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=ZebraStore
+    volumes:
+      - pgdb:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdb:
+

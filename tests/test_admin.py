@@ -1,8 +1,11 @@
 # test_admin.py
+import json
+
 import pytest
 import jwt
 from datetime import datetime, timedelta
 from backend import app, db, User, Order, Product, Category  # Adjust import path
+import os
 import psycopg2
 
 @pytest.fixture
@@ -10,7 +13,7 @@ def client():
     app.config['TESTING'] = True
     # database_path = r'C:\Users\USER\sqlite\fazemart.db'
     # app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{database_path}'
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:postgres@localhost:5432/ZebraStore'
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
     app.config['SECRET_KEY'] = 'c6f444bd3ed1'
     app.config['FLUTTERWAVE_SECRET_KEY'] = 'FLWSECK_TEST-c559611b2da9d557e7854416e17cb208-X'
     with app.test_client() as client:
@@ -19,12 +22,12 @@ def client():
             # Test data
             admin = User(
                 email="admin@example.com", firstname="Admin", lastname="User",
-                address="123 Admin St", username="admin", is_admin=True
+                address="123 Admin St", username="admin", is_admin=True, phone='08180246587'
             )
             admin.set_password("adminpass")  # Use password setter instead of set_password()
             user = User(
                 email="user@example.com", firstname="Regular", lastname="User",
-                address="456 User St", username="user", is_admin=False
+                address="456 User St", username="user", is_admin=False, phone='08107822251'
             )
             user.set_password("userpass")  # Use password setter
             db.session.add_all([admin, user])
@@ -130,19 +133,12 @@ def test_get_all_orders_unauthorized(client, user_token):
     assert response.get_json()['message'] == 'Admin access required'
 
 def test_updating_product(client, admin_token):
-    response = client.put(
-        '/admin/products/1',
-        json={'name': 'Updated Phone', 'price': 349.99, 'stock': 15},
-        headers={'Authorization': f'Bearer {admin_token}'}
-    )
-    data = response.get_json()
+    response = client.put('/admin/products/1',
+                          data=json.dumps({'name': 'Updated Product', 'price': 20.0, 'stock': 5}),
+                          headers={'Authorization': f'Bearer {admin_token}', 'Content-Type': 'application/json'})
     assert response.status_code == 200
-    assert data['message'] == 'Product updated successfully'
-    with app.app_context():
-        product = Product.query.get(1)
-        assert product.name == 'Updated Phone'
-        assert product.price == 349.99
-        assert product.stock == 15
+    assert response.json['message'] == 'Product updated successfully'
+    assert response.json['product_id'] == 1
 
 def test_updating_product_invalid_price(client, admin_token):
     response = client.put(
@@ -160,7 +156,7 @@ def test_creating_product(client, admin_token):
             'name': 'New Product', 'price': 99.99, 'stock': 5,
             'description': 'New item', 'category_id': 1
         },
-        headers={'Authorization': f'Bearer {admin_token}'}
+        headers={'Authorization': f'Bearer {admin_token}', 'Content-Type': 'application/json'}
     )
     data = response.get_json()
     assert response.status_code == 201

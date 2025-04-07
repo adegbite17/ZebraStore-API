@@ -5,6 +5,7 @@ from flask_testing import TestCase
 from backend import app, db, User, Product, Category, CartItem, Order, \
     OrderItem  # Adjust import based on your structure
 import requests_mock
+import os
 from datetime import datetime
 import psycopg2
 
@@ -14,14 +15,14 @@ class TestBase(TestCase):
     def create_app(self):
         # database_path = r'C:\Users\USER\sqlite\fazemart.db'
         # app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{database_path}'
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:postgres@localhost:5432/ZebraStore'
+        app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
         app.config['SECRET_KEY'] = 'c6f444bd3ed1'
         app.config['FLUTTERWAVE_SECRET_KEY'] = 'FLWSECK_TEST-c559611b2da9d557e7854416e17cb208-X'
         app.config['FLUTTERWAVE_PUBLIC_KEY'] = 'FLWPUBK_TEST-94f249780c523996043addef2efe367c-X'
 
         app.config['FLUTTERWAVE_BASE_URL'] = 'https://api.flutterwave.com/v3'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-        app.config['JWT_SECRET_KEY'] = 'aaa84d2a6a9b0215c9113cf5'  # Replace with a strong secret key
+        app.config['JWT_SECRET_KEY'] = 'c3dfa3abce72222115a0c31dc73ad885'
         return app
 
     def setUp(self):
@@ -32,7 +33,8 @@ class TestBase(TestCase):
             lastname="Doe",
             username="johndoe",
             email="john@example.com",
-            address="123 Test St"
+            address="123 Test St",
+            phone='08148827209'
         )
         self.user.set_password("password123")  # Assuming set_password hashes the password
         db.session.add(self.user)
@@ -74,7 +76,7 @@ class TestAPI(TestBase):
     def test_home_page(self):
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json, {'message': 'Welcome to fazemart'})
+        self.assertEqual(response.json, {'message': 'Welcome To Zebra Store'})
 
     def test_products_empty(self):
         Product.query.delete()  # Clear products
@@ -97,7 +99,8 @@ class TestAPI(TestBase):
             'username': 'janedoe',
             'email': 'jane@example.com',
             'address': '456 Test St',
-            'password': 'password456'
+            'password': 'password456',
+            'phone': '08148827209'
         }
         response = self.client.post('/signup', data=json.dumps(data), content_type='application/json')
         self.assertEqual(response.status_code, 201)
@@ -117,7 +120,8 @@ class TestAPI(TestBase):
             'username': 'johndoe',
             'email': 'john@example.com',
             'address': '123 Test St',
-            'password': 'password123'
+            'password': 'password123',
+            'phone': '08180246587'
         }
         response = self.client.post('/signup', data=json.dumps(data), content_type='application/json')
         self.assertEqual(response.status_code, 400)
@@ -142,9 +146,11 @@ class TestAPI(TestBase):
     #    self.assertEqual(response.json['message'], 'This endpoint only accepts post request in order to login')
 
     def test_logout(self):
-        response = self.client.get('/logout')
+        token = self.get_token()
+        headers = {'Authorization': f'Bearer {token}'}
+        response = self.client.get('/logout', headers=headers)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json['message'], 'You are have been logged out successfully')
+        self.assertEqual(response.json['message'], 'You have been logged out successfully')
 
     def test_profile_update(self):
         token = self.get_token()
@@ -266,14 +272,14 @@ class TestAPI(TestBase):
     def test_create_order_empty_cart(self):
         token = self.get_token()
         headers = {'Authorization': f'Bearer {token}'}
-
-        response = self.client.post('/api/orders', data=json.dumps({}), headers=headers,
+        # Send a valid payload to reach the cart check
+        response = self.client.post('/api/orders',
+                                    data=json.dumps({'shipping_address': '123 Test St'}),
+                                    headers=headers,
                                     content_type='application/json')
         print(f"Status: {response.status_code}, Response: {response.get_json()}")  # Debug
-        # self.assertEqual(response.status_code, 201)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json['message'], 'Cart is empty')
-        # self.assertEqual(response.json['message'], 'shipping_address is required')  # Optional: Check message
 
     def test_get_orders(self):
         token = self.get_token()
