@@ -2,7 +2,7 @@ This is a backend api for Zebra online store, the tech stack inludes, python, fl
 
 
 
-in other to run the API as a docker-compose file, you have to docker installed on your system
+in order to run the API as a docker-compose file, you have to docker installed on your system
 # docker-compose up --build #
 
 to stop and remove existing container run
